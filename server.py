@@ -15,7 +15,6 @@ from datetime import datetime
 import eth_account
 import eth_account.typed_transactions
 from eth_typing import Address
-from eth_utils import keccak
 import lz4.frame
 import msgpack
 from web3 import HTTPProvider, Web3
@@ -248,7 +247,7 @@ GENESIS = {
             "storage": {
                 "0x0": "0x5772617070656420485950450000000000000000000000000000000000000018",
                 "0x1": "0x574859504500000000000000000000000000000000000000000000000000000a",
-                "0x2": "0x0000000000000000000000000000000000000000000000000000000000000012"
+                "0x2": "0x0000000000000000000000000000000000000000000000000000000000000012",
             },
         },
     },
@@ -290,35 +289,20 @@ sess = requests.Session()
 
 
 def forward_blocks_to_anvil(indexer, block):
-    system_txs = block["systemTxs"]
-    txs = block["transactions"]
-    number = block["number"]
-    rpc = set_block_params(block)
-    for system_tx in system_txs:
-        rpc += forward_system_tx(indexer, system_tx)
-        if number == 1533:
-            print(rpc[-1])
-    for tx in txs:
-        signature = tx.pop("signature")
-        r, s, v = [int(x, 0) for x in signature]
-        try:
-            tx_in_web3py, v = to_web3_tx(tx, v)
-        except:
-            import traceback
-
-            traceback.print_exc()
-            print(tx)
-            exit()
+    txs = []
+    for tx in block["transactions"]:
+        r, s, v = [int(x, 0) for x in tx.pop("signature")]
+        tx_in_web3py, v = to_web3_tx(tx, v)
         tx_bytes = eth_account._utils.signing.encode_transaction(
             tx_in_web3py, (v, r, s)
         )
-        if number == 7736:
-            print(number, tx_bytes.hex(), keccak(tx_bytes).hex(), tx_in_web3py)
-        rpc.append(
-            {"method": "eth_sendRawTransaction", "params": ["0x" + tx_bytes.hex()]}
-        )
-    rpc.append(mine_block(ETH_RPC_URL))
-    return rpc
+        txs.append("0x" + tx_bytes.hex())
+
+    return set_block_params(
+        block,
+        [forward_system_tx(indexer, system_tx) for system_tx in block["systemTxs"]],
+        txs,
+    )
 
 
 def submit_rpc_requests(ETH_RPC_URL, rpc):
@@ -337,20 +321,18 @@ def mine_block(ETH_RPC_URL):
     return {"method": "anvil_mine", "params": [1]}
 
 
-def set_block_params(block):
+def set_block_params(block, system_txs, txs):
     # Batch request to set block parameters
     batch_request = [
         {
-            "method": "anvil_setNextBlockTimestamp",
-            "params": [block["timestamp"]],
-        },
-        {
-            "method": "anvil_setBlockGasLimit",
-            "params": [block["gasLimit"]],
-        },
-        {
-            "method": "anvil_setNextBlockBaseFeePerGas",
-            "params": [block["baseFeePerGas"]],
+            "method": "anvil_setupBlock",
+            "params": [
+                block["timestamp"],
+                block["gasLimit"],
+                block["baseFeePerGas"],
+                system_txs,
+                txs,
+            ],
         },
     ]
     return batch_request
@@ -364,16 +346,7 @@ def forward_system_tx(indexer, system_tx):
     tx["to"] = "0x" + tx["to"].hex()
     tx["value"] = hex(tx["value"])
     # "anvil_impersonateAccount"
-    return [
-        {
-            "method": "anvil_impersonateAccount",
-            "params": ["0x" + "22" * 20],
-        },
-        {
-            "method": "eth_sendTransaction",
-            "params": [tx],
-        },
-    ]
+    return tx
 
 
 def launch_anvil(GENESIS, overwrite: bool):
@@ -420,7 +393,7 @@ def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
         for block in blocks:
             rpc.extend(forward_blocks_to_anvil(indexer, block))
 
-        if len(rpc) >= 500:
+        if len(rpc):
             # fast forward first blocks
             submit_rpc_requests(ETH_RPC_URL, rpc)
             rpc = []
@@ -438,6 +411,7 @@ if __name__ == "__main__":
     # and input them into the indexer
     parser = argparse.ArgumentParser(description="index evm blocks")
     parser.add_argument("--data-dir", type=str, required=True)
+    parser.add_argument("--start-height-debug", type=int)
     parser.add_argument("--end-height", type=int, required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
@@ -447,11 +421,14 @@ if __name__ == "__main__":
     data_dir = args.data_dir
 
     # start_height = current block number + 1 from ETH_RPC_URL
-    start_height = sess.post(
-        f"{ETH_RPC_URL}/",
-        json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
-    ).json()["result"]
-    start_height = int(start_height, 16) + 1
+    if args.start_height_debug:
+        start_height = args.start_height_debug
+    else:
+        start_height = sess.post(
+            f"{ETH_RPC_URL}/",
+            json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
+        ).json()["result"]
+        start_height = int(start_height, 16) + 1
     end_height = args.end_height
 
     mp_flns = []

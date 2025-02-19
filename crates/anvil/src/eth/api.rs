@@ -366,11 +366,36 @@ impl EthApi {
             EthRequest::EvmSnapshot(_) => self.evm_snapshot().await.to_rpc_result(),
             EthRequest::EvmRevert(id) => self.evm_revert(id).await.to_rpc_result(),
             EthRequest::EvmIncreaseTime(time) => self.evm_increase_time(time).await.to_rpc_result(),
+            EthRequest::AnvilSetupBlock(time, gas_limit, gas, system_txs, txs) => {
+                if time >= U256::from(u64::MAX) {
+                    return ResponseResult::Error(RpcError::invalid_params(
+                        "The timestamp is too big",
+                    ));
+                }
+                let time = time.to::<u64>();
+                self.evm_set_next_block_timestamp(time).unwrap();
+                self.evm_set_block_gas_limit(gas_limit).unwrap();
+                self.anvil_set_next_block_base_fee_per_gas(gas).await.unwrap();
+                self.anvil_impersonate_account(Address::from(&[0x22u8; 20])).await.unwrap();
+                for system_tx in system_txs {
+                    match self.send_transaction(*system_tx).await {
+                        error @ Err(_) => return error.to_rpc_result(),
+                        _ => {}
+                    }
+                }
+                for tx in txs {
+                    match self.send_raw_transaction(tx).await {
+                        error @ Err(_) => return error.to_rpc_result(),
+                        _ => {}
+                    }
+                }
+                self.evm_mine(None).await.to_rpc_result()
+            }
             EthRequest::EvmSetNextBlockTimeStamp(time) => {
                 if time >= U256::from(u64::MAX) {
                     return ResponseResult::Error(RpcError::invalid_params(
                         "The timestamp is too big",
-                    ))
+                    ));
                 }
                 let time = time.to::<u64>();
                 self.evm_set_next_block_timestamp(time).to_rpc_result()
@@ -379,7 +404,7 @@ impl EthApi {
                 if timestamp >= U256::from(u64::MAX) {
                     return ResponseResult::Error(RpcError::invalid_params(
                         "The timestamp is too big",
-                    ))
+                    ));
                 }
                 let time = timestamp.to::<u64>();
                 self.evm_set_time(time).to_rpc_result()
@@ -488,13 +513,13 @@ impl EthApi {
                     B256::with_last_byte(1),
                     false,
                 );
-                return build_typed_transaction(request, nil_signature)
+                return build_typed_transaction(request, nil_signature);
             }
             _ => {
                 for signer in self.signers.iter() {
                     if signer.accounts().contains(from) {
                         let signature = signer.sign_transaction(request.clone(), from)?;
-                        return build_typed_transaction(request, signature)
+                        return build_typed_transaction(request, signature);
                     }
                 }
             }
@@ -685,7 +710,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork(number) {
-                    return Ok(fork.get_balance(address, number).await?)
+                    return Ok(fork.get_balance(address, number).await?);
                 }
             }
         }
@@ -708,7 +733,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork(number) {
-                    return Ok(fork.get_account(address, number).await?)
+                    return Ok(fork.get_account(address, number).await?);
                 }
             }
         }
@@ -865,7 +890,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork(number) {
-                    return Ok(fork.get_code(address, number).await?)
+                    return Ok(fork.get_code(address, number).await?);
                 }
             }
         }
@@ -890,7 +915,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork_inclusive(number) {
-                    return Ok(fork.get_proof(address, keys, Some(number.into())).await?)
+                    return Ok(fork.get_proof(address, keys, Some(number.into())).await?);
                 }
             }
         }
@@ -1076,7 +1101,7 @@ impl EthApi {
                             "not available on past forked blocks".to_string(),
                         ));
                     }
-                    return Ok(fork.call(&request, Some(number.into())).await?)
+                    return Ok(fork.call(&request, Some(number.into())).await?);
                 }
             }
         }
@@ -1124,7 +1149,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork(number) {
-                    return Ok(fork.create_access_list(&request, Some(number.into())).await?)
+                    return Ok(fork.create_access_list(&request, Some(number.into())).await?);
                 }
             }
         }
@@ -1265,7 +1290,7 @@ impl EthApi {
             self.backend.ensure_block_number(Some(BlockId::Hash(block_hash.into()))).await?;
         if let Some(fork) = self.get_fork() {
             if fork.predates_fork_inclusive(number) {
-                return Ok(fork.uncle_by_block_hash_and_index(block_hash, idx.into()).await?)
+                return Ok(fork.uncle_by_block_hash_and_index(block_hash, idx.into()).await?);
             }
         }
         // It's impossible to have uncles outside of fork mode
@@ -1284,7 +1309,7 @@ impl EthApi {
         let number = self.backend.ensure_block_number(Some(BlockId::Number(block_number))).await?;
         if let Some(fork) = self.get_fork() {
             if fork.predates_fork_inclusive(number) {
-                return Ok(fork.uncle_by_block_number_and_index(number, idx.into()).await?)
+                return Ok(fork.uncle_by_block_number_and_index(number, idx.into()).await?);
             }
         }
         // It's impossible to have uncles outside of fork mode
@@ -2439,7 +2464,7 @@ impl EthApi {
         // Validate the request
         // reject transactions that have a non-zero value to prevent draining the executor.
         if request.value.is_some_and(|val| val > U256::ZERO) {
-            return Err(WalletError::ValueNotZero.into())
+            return Err(WalletError::ValueNotZero.into());
         }
 
         // reject transactions that have from set, as this will be the executor.
@@ -2480,8 +2505,8 @@ impl EthApi {
                     .unwrap_or_default();
 
                 // not a whitelisted address, or not an eip-7702 bytecode
-                if delegated_address == Address::ZERO ||
-                    !valid_delegations.contains(&delegated_address)
+                if delegated_address == Address::ZERO
+                    || !valid_delegations.contains(&delegated_address)
                 {
                     return Err(WalletError::IllegalDestination.into());
                 }
@@ -2613,7 +2638,7 @@ impl EthApi {
                             "not available on past forked blocks".to_string(),
                         ));
                     }
-                    return Ok(fork.estimate_gas(&request, Some(number.into())).await?)
+                    return Ok(fork.estimate_gas(&request, Some(number.into())).await?);
                 }
             }
         }
@@ -2645,9 +2670,9 @@ impl EthApi {
         let to = request.to.as_ref().and_then(TxKind::to);
 
         // check certain fields to see if the request could be a simple transfer
-        let maybe_transfer = request.input.input().is_none() &&
-            request.access_list.is_none() &&
-            request.blob_versioned_hashes.is_none();
+        let maybe_transfer = request.input.input().is_none()
+            && request.access_list.is_none()
+            && request.blob_versioned_hashes.is_none();
 
         if maybe_transfer {
             if let Some(to) = to {
@@ -2741,9 +2766,9 @@ impl EthApi {
                     // make no sense (as the TX would still succeed).
                     highest_gas_limit = mid_gas_limit;
                 }
-                GasEstimationCallResult::OutOfGas |
-                GasEstimationCallResult::Revert(_) |
-                GasEstimationCallResult::EvmError(_) => {
+                GasEstimationCallResult::OutOfGas
+                | GasEstimationCallResult::Revert(_)
+                | GasEstimationCallResult::EvmError(_) => {
                     // If the transaction failed, we can set a floor for the lowest gas limit at the
                     // current midpoint, as spending any less gas would make no
                     // sense (as the TX would still revert due to lack of gas).
@@ -2952,10 +2977,10 @@ impl EthApi {
                 B256::with_last_byte(1),
                 false,
             ),
-            TypedTransactionRequest::EIP2930(_) |
-            TypedTransactionRequest::EIP1559(_) |
-            TypedTransactionRequest::EIP4844(_) |
-            TypedTransactionRequest::Deposit(_) => Signature::from_scalars_and_parity(
+            TypedTransactionRequest::EIP2930(_)
+            | TypedTransactionRequest::EIP1559(_)
+            | TypedTransactionRequest::EIP4844(_)
+            | TypedTransactionRequest::Deposit(_) => Signature::from_scalars_and_parity(
                 B256::with_last_byte(1),
                 B256::with_last_byte(1),
                 false,
@@ -2974,7 +2999,7 @@ impl EthApi {
         if let BlockRequest::Number(number) = block_request {
             if let Some(fork) = self.get_fork() {
                 if fork.predates_fork(number) {
-                    return Ok(fork.get_nonce(address, number).await?)
+                    return Ok(fork.get_nonce(address, number).await?);
                 }
             }
         }
@@ -3117,42 +3142,42 @@ impl TryFrom<Result<(InstructionResult, Option<Output>, u128, State)>> for GasEs
 
                 InstructionResult::Revert => Ok(Self::Revert(output.map(|o| o.into_data()))),
 
-                InstructionResult::OutOfGas |
-                InstructionResult::MemoryOOG |
-                InstructionResult::MemoryLimitOOG |
-                InstructionResult::PrecompileOOG |
-                InstructionResult::InvalidOperandOOG => Ok(Self::OutOfGas),
+                InstructionResult::OutOfGas
+                | InstructionResult::MemoryOOG
+                | InstructionResult::MemoryLimitOOG
+                | InstructionResult::PrecompileOOG
+                | InstructionResult::InvalidOperandOOG => Ok(Self::OutOfGas),
 
-                InstructionResult::OpcodeNotFound |
-                InstructionResult::CallNotAllowedInsideStatic |
-                InstructionResult::StateChangeDuringStaticCall |
-                InstructionResult::InvalidExtDelegateCallTarget |
-                InstructionResult::InvalidEXTCALLTarget |
-                InstructionResult::InvalidFEOpcode |
-                InstructionResult::InvalidJump |
-                InstructionResult::NotActivated |
-                InstructionResult::StackUnderflow |
-                InstructionResult::StackOverflow |
-                InstructionResult::OutOfOffset |
-                InstructionResult::CreateCollision |
-                InstructionResult::OverflowPayment |
-                InstructionResult::PrecompileError |
-                InstructionResult::NonceOverflow |
-                InstructionResult::CreateContractSizeLimit |
-                InstructionResult::CreateContractStartingWithEF |
-                InstructionResult::CreateInitCodeSizeLimit |
-                InstructionResult::FatalExternalError |
-                InstructionResult::OutOfFunds |
-                InstructionResult::CallTooDeep => Ok(Self::EvmError(exit)),
+                InstructionResult::OpcodeNotFound
+                | InstructionResult::CallNotAllowedInsideStatic
+                | InstructionResult::StateChangeDuringStaticCall
+                | InstructionResult::InvalidExtDelegateCallTarget
+                | InstructionResult::InvalidEXTCALLTarget
+                | InstructionResult::InvalidFEOpcode
+                | InstructionResult::InvalidJump
+                | InstructionResult::NotActivated
+                | InstructionResult::StackUnderflow
+                | InstructionResult::StackOverflow
+                | InstructionResult::OutOfOffset
+                | InstructionResult::CreateCollision
+                | InstructionResult::OverflowPayment
+                | InstructionResult::PrecompileError
+                | InstructionResult::NonceOverflow
+                | InstructionResult::CreateContractSizeLimit
+                | InstructionResult::CreateContractStartingWithEF
+                | InstructionResult::CreateInitCodeSizeLimit
+                | InstructionResult::FatalExternalError
+                | InstructionResult::OutOfFunds
+                | InstructionResult::CallTooDeep => Ok(Self::EvmError(exit)),
 
                 // Handle Revm EOF InstructionResults: Not supported yet
-                InstructionResult::ReturnContractInNotInitEOF |
-                InstructionResult::EOFOpcodeDisabledInLegacy |
-                InstructionResult::EOFFunctionStackOverflow |
-                InstructionResult::CreateInitCodeStartingEF00 |
-                InstructionResult::InvalidEOFInitCode |
-                InstructionResult::EofAuxDataOverflow |
-                InstructionResult::EofAuxDataTooSmall => Ok(Self::EvmError(exit)),
+                InstructionResult::ReturnContractInNotInitEOF
+                | InstructionResult::EOFOpcodeDisabledInLegacy
+                | InstructionResult::EOFFunctionStackOverflow
+                | InstructionResult::CreateInitCodeStartingEF00
+                | InstructionResult::InvalidEOFInitCode
+                | InstructionResult::EofAuxDataOverflow
+                | InstructionResult::EofAuxDataTooSmall => Ok(Self::EvmError(exit)),
             },
         }
     }

@@ -597,6 +597,15 @@ pub enum EthRequest {
     )]
     EvmSetNextBlockTimeStamp(U256),
 
+    /// Similar to `evm_increaseTime` but takes the exact timestamp that you want in the next block
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            rename = "anvil_setupBlock"
+        )
+    )]
+    AnvilSetupBlock(U256, U256, U256, Vec<Box<WithOtherFields<TransactionRequest>>>, Vec<Bytes>),
+
     /// Set the exact gas limit that you want in the next block
     #[cfg_attr(
         feature = "serde",
