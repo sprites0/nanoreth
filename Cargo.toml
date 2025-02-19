@@ -4,10 +4,8 @@ members = [
     "crates/anvil/core/",
     "crates/anvil/rpc/",
     "crates/anvil/server/",
-    "crates/cast/",
     "crates/cheatcodes/",
     "crates/cheatcodes/spec/",
-    "crates/chisel/",
     "crates/cli/",
     "crates/common/",
     "crates/config/",
@@ -19,7 +17,6 @@ members = [
     "crates/evm/fuzz/",
     "crates/evm/traces/",
     "crates/fmt/",
-    "crates/forge/",
     "crates/script-sequence/",
     "crates/macros/",
     "crates/test-utils/",
@@ -157,9 +154,6 @@ trezor-client.opt-level = "z"
 
 [workspace.dependencies]
 anvil = { path = "crates/anvil" }
-cast = { path = "crates/cast" }
-chisel = { path = "crates/chisel" }
-forge = { path = "crates/forge" }
 
 forge-doc = { path = "crates/doc" }
 forge-fmt = { path = "crates/fmt" }

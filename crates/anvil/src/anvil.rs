@@ -54,6 +54,7 @@ fn run() -> Result<()> {
     let mut args = Anvil::parse();
     args.global.init()?;
     args.node.evm.resolve_rpc_alias();
+    println!("{:?}", args.node.init);
 
     if let Some(cmd) = &args.cmd {
         match cmd {
