@@ -9,5 +9,5 @@ Based on [foundry](https://github.com/foundry-rs/foundry).
 ```
 aws configure
 aws s3 ls s3://hl-mainnet-evm-blocks/ evm-blocks --request-payer requester
-python3 server.py --data-dir evm-blocks --start-height 1 --end-height 40000
+python3 server.py --data-dir evm-blocks --overwrite --end-height 40000
 ```
