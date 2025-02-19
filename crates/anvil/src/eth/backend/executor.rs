@@ -138,7 +138,7 @@ impl<DB: Db + ?Sized, V: TransactionValidator> TransactionExecutor<'_, DB, V> {
         let is_cancun = self.cfg_env.handler_cfg.spec_id >= SpecId::CANCUN;
         let is_prague = self.cfg_env.handler_cfg.spec_id >= SpecId::PRAGUE;
         let excess_blob_gas = if is_cancun { self.block_env.get_blob_excess_gas() } else { None };
-        let mut cumulative_blob_gas_used = if is_cancun { Some(0u64) } else { None };
+        let cumulative_blob_gas_used = if is_cancun { Some(0u64) } else { None };
 
         for tx in self.into_iter() {
             let tx = match tx {
@@ -166,17 +166,17 @@ impl<DB: Db + ?Sized, V: TransactionValidator> TransactionExecutor<'_, DB, V> {
                     continue;
                 }
             };
-            if is_cancun {
-                let tx_blob_gas = tx
-                    .transaction
-                    .pending_transaction
-                    .transaction
-                    .transaction
-                    .blob_gas()
-                    .unwrap_or(0);
-                cumulative_blob_gas_used =
-                    Some(cumulative_blob_gas_used.unwrap_or(0u64).saturating_add(tx_blob_gas));
-            }
+            // if is_cancun {
+            //     let tx_blob_gas = tx
+            //         .transaction
+            //         .pending_transaction
+            //         .transaction
+            //         .transaction
+            //         .blob_gas()
+            //         .unwrap_or(0);
+            //     cumulative_blob_gas_used =
+            //         Some(cumulative_blob_gas_used.unwrap_or(0u64).saturating_add(tx_blob_gas));
+            // }
             let receipt = tx.create_receipt(&mut cumulative_gas_used);
 
             let ExecutedTransaction { transaction, logs, out, traces, exit_reason: exit, .. } = tx;
