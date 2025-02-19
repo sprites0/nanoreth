@@ -366,30 +366,36 @@ impl EthApi {
             EthRequest::EvmSnapshot(_) => self.evm_snapshot().await.to_rpc_result(),
             EthRequest::EvmRevert(id) => self.evm_revert(id).await.to_rpc_result(),
             EthRequest::EvmIncreaseTime(time) => self.evm_increase_time(time).await.to_rpc_result(),
-            EthRequest::AnvilSetupBlock(time, gas_limit, gas, system_txs, txs) => {
-                if time >= U256::from(u64::MAX) {
-                    return ResponseResult::Error(RpcError::invalid_params(
-                        "The timestamp is too big",
-                    ));
-                }
-                let time = time.to::<u64>();
-                self.evm_set_next_block_timestamp(time).unwrap();
-                self.evm_set_block_gas_limit(gas_limit).unwrap();
-                self.anvil_set_next_block_base_fee_per_gas(gas).await.unwrap();
-                self.anvil_impersonate_account(Address::from(&[0x22u8; 20])).await.unwrap();
-                for system_tx in system_txs {
-                    match self.send_transaction(*system_tx).await {
+            EthRequest::AnvilSetupBlock(blocks) => {
+                for (time, gas_limit, gas, system_txs, txs) in blocks {
+                    if time >= U256::from(u64::MAX) {
+                        return ResponseResult::Error(RpcError::invalid_params(
+                            "The timestamp is too big",
+                        ));
+                    }
+                    let time = time.to::<u64>();
+                    self.evm_set_next_block_timestamp(time).unwrap();
+                    self.evm_set_block_gas_limit(gas_limit).unwrap();
+                    self.anvil_set_next_block_base_fee_per_gas(gas).await.unwrap();
+                    self.anvil_impersonate_account(Address::from(&[0x22u8; 20])).await.unwrap();
+                    for system_tx in system_txs {
+                        match self.send_transaction(*system_tx).await {
+                            error @ Err(_) => return error.to_rpc_result(),
+                            _ => {}
+                        }
+                    }
+                    for tx in txs {
+                        match self.send_raw_transaction(tx).await {
+                            error @ Err(_) => return error.to_rpc_result(),
+                            _ => {}
+                        }
+                    }
+                    match self.evm_mine(None).await {
                         error @ Err(_) => return error.to_rpc_result(),
                         _ => {}
-                    }
+                    };
                 }
-                for tx in txs {
-                    match self.send_raw_transaction(tx).await {
-                        error @ Err(_) => return error.to_rpc_result(),
-                        _ => {}
-                    }
-                }
-                self.evm_mine(None).await.to_rpc_result()
+                ResponseResult::success(())
             }
             EthRequest::EvmSetNextBlockTimeStamp(time) => {
                 if time >= U256::from(u64::MAX) {

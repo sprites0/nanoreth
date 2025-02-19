@@ -308,32 +308,28 @@ def forward_blocks_to_anvil(indexer, block):
 def submit_rpc_requests(ETH_RPC_URL, rpc):
     for i in range(0, len(rpc), 100):
         chunk = rpc[i : i + 100]
-        chunk = [
-            request | {"jsonrpc": "2.0", "id": i + 1} for i, request in enumerate(chunk)
-        ]
+        chunk = {
+            "jsonrpc": "2.0",
+            "id": i + 1,
+            "method": "anvil_setupBlock",
+            "params": chunk,
+        }
         req = sess.post(f"{ETH_RPC_URL}/", json=chunk)
         responses = req.json()
         for response in responses:
             assert "error" not in response, response
 
 
-def mine_block(ETH_RPC_URL):
-    return {"method": "anvil_mine", "params": [1]}
-
-
 def set_block_params(block, system_txs, txs):
     # Batch request to set block parameters
     batch_request = [
-        {
-            "method": "anvil_setupBlock",
-            "params": [
-                block["timestamp"],
-                block["gasLimit"],
-                block["baseFeePerGas"],
-                system_txs,
-                txs,
-            ],
-        },
+        [
+            block["timestamp"],
+            block["gasLimit"],
+            block["baseFeePerGas"],
+            system_txs,
+            txs,
+        ],
     ]
     return batch_request
 
@@ -393,7 +389,7 @@ def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
         for block in blocks:
             rpc.extend(forward_blocks_to_anvil(indexer, block))
 
-        if len(rpc):
+        if len(rpc) >= 100:
             # fast forward first blocks
             submit_rpc_requests(ETH_RPC_URL, rpc)
             rpc = []
