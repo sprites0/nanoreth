@@ -1,6 +1,6 @@
 # Modified from https://github.com/hyperliquid-dex/hyperliquid-python-sdk/commits/b569b18bdb923f6e84a61c164ccb29e51f3e181b/examples/evm_block_indexer.py
 
-import tempfile
+import pathlib
 import threading
 import time
 from typing import Any
@@ -224,48 +224,65 @@ def to_web3_tx(tx, v):
 
 
 GENESIS = {
-    "config": {
-        "chainId": 999,
-        "homesteadBlock": 0,
-        "eip150Block": 0,
-        "eip155Block": 0,
-        "eip158Block": 0,
-        "byzantiumBlock": 0,
-        "constantinopleBlock": 0,
-        "petersburgBlock": 0,
-        "istanbulBlock": 0,
-        "muirGlacierBlock": 0,
-        "berlinBlock": 0,
-        "londonBlock": 0,
-        "arrowGlacierBlock": 0,
-        "grayGlacierBlock": 0,
-        "ethash": {},
-        "terminalTotalDifficulty": 0,
-        "depositContractAddress": "0x0000000000000000000000000000000000000000",
-        "terminalTotalDifficultyPassed": True,
+    "block": {
+        "number": "0x0",
+        "coinbase": "0x0000000000000000000000000000000000000000",
+        "timestamp": "0x0",
+        "gas_limit": "0x0",
+        "basefee": "0x0",
+        "difficulty": "0x0",
+        "prevrandao": None,
+        "blob_excess_gas_and_price": {"excess_blob_gas": 0, "blob_gasprice": 0},
     },
-    "nonce": "0",
-    "timestamp": "0x0",
-    "extraData": "0x",
-    "gasLimit": "0x0",
-    "difficulty": "0x0",
-    "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "coinbase": "0x0000000000000000000000000000000000000000",
-    "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "receiptsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
-    "alloc": {
-        "2222222222222222222222222222222222222222": {
-            "balance": "0x33B2E3C9FD0803CE8000000",
+    "accounts": {
+        "0x2222222222222222222222222222222222222222": {
+            "nonce": 0,
+            "balance": "0x33b2e3c9fd0803ce8000000",
             "code": "0x608060405236603f5760405134815233907f88a5966d370b9919b20f3e2c13ff65706f196a4e32cc2c12bf57088f885258749060200160405180910390a2005b600080fdfea2646970667358221220ca425db50898ac19f9e4676e86e8ebed9853baa048942f6306fe8a86b8d4abb964736f6c63430008090033",
+            "storage": {},
         },
-        "5555555555555555555555555555555555555555": {
+        "0x5555555555555555555555555555555555555555": {
+            "nonce": 0,
             "balance": "0x0",
-            "code": "0x6080604052600436106100bc5760003560e01c8063313ce56711610074578063a9059cbb1161004e578063a9059cbb146102cb578063d0e30db0146100bc578063dd62ed3e14610311576100bc565b8063313ce5671461024b57806370a082311461027657806395d89b41146102b6576100bc565b806318160ddd116100a557806318160ddd146101aa57806323b872dd146101d15780632e1a7d4d14610221576100bc565b806306fdde03146100c6578063095ea7b314610150575b6100c4610359565b005b3480156100d257600080fd5b506100db6103a8565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101155781810151838201526020016100fd565b50505050905090810190601f1680156101425780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561015c57600080fd5b506101966004803603604081101561017357600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135169060200135610454565b604080519115158252519081900360200190f35b3480156101b657600080fd5b506101bf6104c7565b60408051918252519081900360200190f35b3480156101dd57600080fd5b50610196600480360360608110156101f457600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135811691602081013590911690604001356104cb565b34801561022d57600080fd5b506100c46004803603602081101561024457600080fd5b503561066b565b34801561025757600080fd5b50610260610700565b6040805160ff9092168252519081900360200190f35b34801561028257600080fd5b506101bf6004803603602081101561029957600080fd5b503573ffffffffffffffffffffffffffffffffffffffff16610709565b3480156102c257600080fd5b506100db61071b565b3480156102d757600080fd5b50610196600480360360408110156102ee57600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135169060200135610793565b34801561031d57600080fd5b506101bf6004803603604081101561033457600080fd5b5073ffffffffffffffffffffffffffffffffffffffff813581169160200135166107a7565b33600081815260036020908152604091829020805434908101909155825190815291517fe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c9281900390910190a2565b6000805460408051602060026001851615610100027fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0190941693909304601f8101849004840282018401909252818152929183018282801561044c5780601f106104215761010080835404028352916020019161044c565b820191906000526020600020905b81548152906001019060200180831161042f57829003601f168201915b505050505081565b33600081815260046020908152604080832073ffffffffffffffffffffffffffffffffffffffff8716808552908352818420869055815186815291519394909390927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925928290030190a350600192915050565b4790565b73ffffffffffffffffffffffffffffffffffffffff83166000908152600360205260408120548211156104fd57600080fd5b73ffffffffffffffffffffffffffffffffffffffff84163314801590610573575073ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff14155b156105ed5773ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020548211156105b557600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020805483900390555b73ffffffffffffffffffffffffffffffffffffffff808516600081815260036020908152604080832080548890039055938716808352918490208054870190558351868152935191937fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929081900390910190a35060019392505050565b3360009081526003602052604090205481111561068757600080fd5b33600081815260036020526040808220805485900390555183156108fc0291849190818181858888f193505050501580156106c6573d6000803e3d6000fd5b5060408051828152905133917f7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65919081900360200190a250565b60025460ff1681565b60036020526000908152604090205481565b60018054604080516020600284861615610100027fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0190941693909304601f8101849004840282018401909252818152929183018282801561044c5780601f106104215761010080835404028352916020019161044c565b60006107a03384846104cb565b9392505050565b60046020908152600092835260408084209091529082529020548156fea265627a7a72315820e87684b404839c5657b1e7820bfa5ac4539ac8c83c21e28ec1086123db902cfe64736f6c63430005110032"
-        }
+            "code": "0x6080604052600436106100bc5760003560e01c8063313ce56711610074578063a9059cbb1161004e578063a9059cbb146102cb578063d0e30db0146100bc578063dd62ed3e14610311576100bc565b8063313ce5671461024b57806370a082311461027657806395d89b41146102b6576100bc565b806318160ddd116100a557806318160ddd146101aa57806323b872dd146101d15780632e1a7d4d14610221576100bc565b806306fdde03146100c6578063095ea7b314610150575b6100c4610359565b005b3480156100d257600080fd5b506100db6103a8565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101155781810151838201526020016100fd565b50505050905090810190601f1680156101425780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561015c57600080fd5b506101966004803603604081101561017357600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135169060200135610454565b604080519115158252519081900360200190f35b3480156101b657600080fd5b506101bf6104c7565b60408051918252519081900360200190f35b3480156101dd57600080fd5b50610196600480360360608110156101f457600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135811691602081013590911690604001356104cb565b34801561022d57600080fd5b506100c46004803603602081101561024457600080fd5b503561066b565b34801561025757600080fd5b50610260610700565b6040805160ff9092168252519081900360200190f35b34801561028257600080fd5b506101bf6004803603602081101561029957600080fd5b503573ffffffffffffffffffffffffffffffffffffffff16610709565b3480156102c257600080fd5b506100db61071b565b3480156102d757600080fd5b50610196600480360360408110156102ee57600080fd5b5073ffffffffffffffffffffffffffffffffffffffff8135169060200135610793565b34801561031d57600080fd5b506101bf6004803603604081101561033457600080fd5b5073ffffffffffffffffffffffffffffffffffffffff813581169160200135166107a7565b33600081815260036020908152604091829020805434908101909155825190815291517fe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c9281900390910190a2565b6000805460408051602060026001851615610100027fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0190941693909304601f8101849004840282018401909252818152929183018282801561044c5780601f106104215761010080835404028352916020019161044c565b820191906000526020600020905b81548152906001019060200180831161042f57829003601f168201915b505050505081565b33600081815260046020908152604080832073ffffffffffffffffffffffffffffffffffffffff8716808552908352818420869055815186815291519394909390927f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925928290030190a350600192915050565b4790565b73ffffffffffffffffffffffffffffffffffffffff83166000908152600360205260408120548211156104fd57600080fd5b73ffffffffffffffffffffffffffffffffffffffff84163314801590610573575073ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020547fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff14155b156105ed5773ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020548211156105b557600080fd5b73ffffffffffffffffffffffffffffffffffffffff841660009081526004602090815260408083203384529091529020805483900390555b73ffffffffffffffffffffffffffffffffffffffff808516600081815260036020908152604080832080548890039055938716808352918490208054870190558351868152935191937fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929081900390910190a35060019392505050565b3360009081526003602052604090205481111561068757600080fd5b33600081815260036020526040808220805485900390555183156108fc0291849190818181858888f193505050501580156106c6573d6000803e3d6000fd5b5060408051828152905133917f7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65919081900360200190a250565b60025460ff1681565b60036020526000908152604090205481565b60018054604080516020600284861615610100027fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0190941693909304601f8101849004840282018401909252818152929183018282801561044c5780601f106104215761010080835404028352916020019161044c565b60006107a03384846104cb565b9392505050565b60046020908152600092835260408084209091529082529020548156fea265627a7a72315820e87684b404839c5657b1e7820bfa5ac4539ac8c83c21e28ec1086123db902cfe64736f6c63430005110032",
+            "storage": {
+                "0x0": "0x5772617070656420485950450000000000000000000000000000000000000018",
+                "0x1": "0x574859504500000000000000000000000000000000000000000000000000000a",
+                "0x2": "0x0000000000000000000000000000000000000000000000000000000000000012"
+            },
+        },
     },
-    "number": "0x0",
-    "gasUsed": "0x0",
-    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "best_block_number": "0x0",
+    "blocks": [
+        {
+            "header": {
+                "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+                "miner": "0x0000000000000000000000000000000000000000",
+                "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "transactionsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+                "receiptsRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "difficulty": "0x0",
+                "number": "0x0",
+                "gasLimit": "0x1c9c380",
+                "gasUsed": "0x0",
+                "timestamp": "0x0",
+                "extraData": "0x",
+                "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "nonce": "0x0000000000000000",
+                "baseFeePerGas": "0x5f5e100",
+                "withdrawalsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+                "blobGasUsed": "0x0",
+                "excessBlobGas": "0x0",
+                "parentBeaconBlockRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            },
+            "transactions": [],
+            "ommers": [],
+        }
+    ],
+    "transactions": [],
+    "historical_states": None,
 }
 
 
@@ -295,11 +312,14 @@ def forward_blocks_to_anvil(indexer, block):
         tx_bytes = eth_account._utils.signing.encode_transaction(
             tx_in_web3py, (v, r, s)
         )
-        if number >= 10000:
+        if number == 7736:
             print(number, tx_bytes.hex(), keccak(tx_bytes).hex(), tx_in_web3py)
-        rpc.append({"method": "eth_sendRawTransaction", "params": ['0x' + tx_bytes.hex()]})
+        rpc.append(
+            {"method": "eth_sendRawTransaction", "params": ["0x" + tx_bytes.hex()]}
+        )
     rpc.append(mine_block(ETH_RPC_URL))
     return rpc
+
 
 def submit_rpc_requests(ETH_RPC_URL, rpc):
     for i in range(0, len(rpc), 100):
@@ -338,11 +358,11 @@ def set_block_params(block):
 
 def forward_system_tx(indexer, system_tx):
     tx = indexer._process_transaction({"transaction": system_tx["tx"]}) | {
-        "from": '0x' + '22' * 20,
+        "from": "0x" + "22" * 20,
         "gasLimit": 300000,
     }
-    tx['to'] = '0x' + tx['to'].hex()
-    tx['value'] = hex(tx['value'])
+    tx["to"] = "0x" + tx["to"].hex()
+    tx["value"] = hex(tx["value"])
     # "anvil_impersonateAccount"
     return [
         {
@@ -356,14 +376,21 @@ def forward_system_tx(indexer, system_tx):
     ]
 
 
-def launch_anvil(GENESIS):
-    genesis = tempfile.NamedTemporaryFile(delete=False)
-    with open(genesis.name, "w") as f:
-        json.dump(GENESIS, f)
+def launch_anvil(GENESIS, overwrite: bool):
+    genesis = pathlib.Path("/tmp/genesis.json")
+    if overwrite or not genesis.exists():
+        with open(genesis, "w") as f:
+            json.dump(GENESIS, f, indent=2)
     anvil = "cargo run --release --"
     # anvil = "~/anvil"
     p = subprocess.Popen(
-        f"killall anvil; {anvil} -a 0 --no-mining --hardfork cancun --no-create2 --steps-tracing --init {genesis.name}",
+        f"killall anvil; {anvil} -a 0 --no-mining"
+        " --chain-id 999 --timestamp 0 --hardfork cancun"
+        # f" --prune-history 20000"
+        " --cache-path /tmp/cache"
+        " --state-interval 10"
+        " --gas-price 100000000"
+        f" --no-create2 --order fifo --state {genesis}",
         shell=True,
         env=os.environ | {"RUST_LOG": "warn"},
     )
@@ -372,30 +399,61 @@ def launch_anvil(GENESIS):
 
 
 def compare_blocks():
-    time.sleep(3)
-    mirror_rpc = 'https://rpc.hyperliquid.xyz/evm'
-    for i in range(7000, 40000, 100):
+    mirror_rpc = "https://rpc.hyperliquid.xyz/evm"
+    for i in range(1, 40000, 1000):
+        while True:
+            try:
+                a = Web3(HTTPProvider(ETH_RPC_URL)).eth.get_block(i)
+                break
+            except:
+                time.sleep(1)
         a = Web3(HTTPProvider(mirror_rpc)).eth.get_block(i)
         b = Web3(HTTPProvider(ETH_RPC_URL)).eth.get_block(i)
-        print(i, a['hash'] == b['hash'])
+        print(i, a["hash"] == b["hash"])
 
-        time.sleep(1)
+
+def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
+    indexer = EthBlockIndexer()
+    rpc = []
+    for mp_fln in mp_flns:
+        blocks = indexer.process_msgpack_file(mp_fln)
+        for block in blocks:
+            rpc.extend(forward_blocks_to_anvil(indexer, block))
+
+        if len(rpc) >= 500:
+            # fast forward first blocks
+            submit_rpc_requests(ETH_RPC_URL, rpc)
+            rpc = []
+
+        if blocks and blocks[-1]["number"] % 1000 == 0:
+            print(indexer.summarize_blocks(blocks))
+
+    submit_rpc_requests(ETH_RPC_URL, rpc)
 
 
 if __name__ == "__main__":
+    ETH_RPC_URL = os.getenv("ETH_RPC_URL", "http://localhost:8545")
+
     # Download ethereum block files from s3://hl-[testnet|mainnet]-evm-blocks
     # and input them into the indexer
     parser = argparse.ArgumentParser(description="index evm blocks")
     parser.add_argument("--data-dir", type=str, required=True)
-    parser.add_argument("--start-height", type=int, default=1)
     parser.add_argument("--end-height", type=int, required=True)
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    p = launch_anvil(GENESIS)
+    p = launch_anvil(GENESIS, args.overwrite)
 
     data_dir = args.data_dir
-    start_height = args.start_height
+
+    # start_height = current block number + 1 from ETH_RPC_URL
+    start_height = sess.post(
+        f"{ETH_RPC_URL}/",
+        json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
+    ).json()["result"]
+    start_height = int(start_height, 16) + 1
     end_height = args.end_height
+
     mp_flns = []
     for height in range(start_height, end_height + 1):
         f = ((height - 1) // 100000) * 100000
@@ -409,25 +467,8 @@ if __name__ == "__main__":
         decompress_lz4(lz4_fln, mp_fln)
         mp_flns.append(mp_fln)
 
-    ETH_RPC_URL = os.getenv("ETH_RPC_URL", "http://localhost:8545")
-
     threading.Thread(target=compare_blocks).start()
+    sync_blocks_to_node(ETH_RPC_URL, mp_flns)
 
-    indexer = EthBlockIndexer()
-    rpc = []
-    for mp_fln in mp_flns:
-        blocks = indexer.process_msgpack_file(mp_fln)
-        for block in blocks:
-            rpc.extend(forward_blocks_to_anvil(indexer, block))
-
-        if blocks[0]["number"] >= 5000:
-            # fast forward first blocks
-            submit_rpc_requests(ETH_RPC_URL, rpc)
-            rpc = []
-
-        if blocks and blocks[-1]["number"] % 1000 == 0:
-            print(indexer.summarize_blocks(blocks))
-
-    submit_rpc_requests(ETH_RPC_URL, rpc)
     print(f"done, use {ETH_RPC_URL}/ to interact with the chain")
     p.wait()
