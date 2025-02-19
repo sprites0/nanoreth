@@ -2456,7 +2456,9 @@ impl Backend {
         if let Some(fork) = self.get_fork() {
             let number = self.convert_block_number(Some(number));
             if fork.predates_fork(number) {
-                return Ok(fork.transaction_by_block_number_and_index(number, index.into()).await?);
+                return Ok(fork
+                    .transaction_by_block_number_and_index(number, index.into())
+                    .await?);
             }
         }
 
@@ -2512,7 +2514,10 @@ impl Backend {
         }
 
         if let Some(fork) = self.get_fork() {
-            return fork.transaction_by_hash(hash).await.map_err(BlockchainError::AlloyForkProvider);
+            return fork
+                .transaction_by_hash(hash)
+                .await
+                .map_err(BlockchainError::AlloyForkProvider);
         }
 
         Ok(None)
@@ -2767,7 +2772,10 @@ impl TransactionValidator for Backend {
         }
 
         if (env.handler_cfg.spec_id as u8) >= (SpecId::LONDON as u8) {
-            if tx.gas_price() < env.block.basefee.to() && !is_deposit_tx {
+            // DIFF
+            let basefee =
+                if pending.sender() != [0x22u8; 20] { env.block.basefee } else { U256::ZERO };
+            if tx.gas_price() < basefee.to() && !is_deposit_tx {
                 warn!(target: "backend", "max fee per gas={}, too low, block basefee={}",tx.gas_price(),  env.block.basefee);
                 return Err(InvalidTransactionError::FeeCapTooLow);
             }

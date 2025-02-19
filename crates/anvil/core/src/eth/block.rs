@@ -29,6 +29,10 @@ pub struct Block {
     pub ommers: Vec<Header>,
 }
 
+fn not_system_transaction(tx: &Transaction) -> bool {
+    tx.impersonated_sender.is_none()
+}
+
 impl Block {
     /// Creates a new block.
     ///
@@ -39,8 +43,11 @@ impl Block {
         T: Into<Transaction>,
     {
         let transactions: Vec<_> = transactions.into_iter().map(Into::into).collect();
+        // DIFF
         let transactions_root =
-            trie::ordered_trie_root(transactions.iter().map(|r| r.encoded_2718()));
+            trie::ordered_trie_root(transactions.iter().filter(
+                |tx| not_system_transaction(tx),
+            ).map(|r| r.encoded_2718()));
 
         Self {
             header: Header {

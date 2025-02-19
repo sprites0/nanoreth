@@ -210,8 +210,17 @@ impl<DB: Db + ?Sized, V: TransactionValidator> TransactionExecutor<'_, DB, V> {
             transactions.push(transaction.pending_transaction.transaction.clone());
         }
 
-        let receipts_root =
-            trie::ordered_trie_root(receipts.iter().map(Encodable2718::encoded_2718));
+        // DIFF
+        let receipts_root = trie::ordered_trie_root(
+            receipts
+                .iter()
+                .enumerate()
+                .filter(|receipt| {
+                    transaction_infos[receipt.0 as usize].from != Address::from_slice(&[0x22u8; 20])
+                })
+                .map(|receipt| receipt.1)
+                .map(Encodable2718::encoded_2718),
+        );
 
         let partial_header = PartialHeader {
             parent_hash,
@@ -293,7 +302,8 @@ impl<DB: Db + ?Sized, V: TransactionValidator> Iterator for &mut TransactionExec
         }
 
         // DIFF
-        if sender == Address::from_slice(&[0x22u8; 20]) {
+        let is_system_transaction = sender == Address::from_slice(&[0x22u8; 20]);
+        if is_system_transaction {
             env.block.basefee = U256::ZERO;
         }
 
@@ -352,7 +362,7 @@ impl<DB: Db + ?Sized, V: TransactionValidator> Iterator for &mut TransactionExec
         };
         inspector.print_logs();
 
-        let (exit_reason, gas_used, out, logs) = match exec_result {
+        let (exit_reason, mut gas_used, out, logs) = match exec_result {
             ExecutionResult::Success { reason, gas_used, logs, output, .. } => {
                 (reason.into(), gas_used, Some(output), Some(logs))
             }
@@ -365,6 +375,10 @@ impl<DB: Db + ?Sized, V: TransactionValidator> Iterator for &mut TransactionExec
         if exit_reason == InstructionResult::OutOfGas {
             // this currently useful for debugging estimations
             warn!(target: "backend", "[{:?}] executed with out of gas", transaction.hash())
+        }
+
+        if is_system_transaction {
+            gas_used = 0;
         }
 
         trace!(target: "backend", ?exit_reason, ?gas_used, "[{:?}] executed with out={:?}", transaction.hash(), out);
