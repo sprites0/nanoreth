@@ -1,3 +1,8 @@
+# nanoreth
+
+Hyperliquid EVM archival node attempt.
+This does not support precompiles.
+
 <div align="center">
   <img src=".github/assets/banner.png" alt="Foundry banner" />
 
