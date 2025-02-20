@@ -1,6 +1,8 @@
 # Modified from https://github.com/hyperliquid-dex/hyperliquid-python-sdk/commits/b569b18bdb923f6e84a61c164ccb29e51f3e181b/examples/evm_block_indexer.py
 
+import collections
 import pathlib
+import queue
 import threading
 import time
 from typing import Any
@@ -18,16 +20,6 @@ from eth_typing import Address
 import lz4.frame
 import msgpack
 from web3 import HTTPProvider, Web3
-
-
-def decompress_lz4(input_file, output_file):
-    with open(input_file, "rb") as f_in:
-        compressed_data = f_in.read()
-
-    decompressed_data = lz4.frame.decompress(compressed_data)
-
-    with open(output_file, "wb") as f_out:
-        f_out.write(decompressed_data)
 
 
 class BytesEncoder(json.JSONEncoder):
@@ -171,7 +163,9 @@ class EthBlockIndexer:
     def process_msgpack_file(self, filename: str) -> list:
         blocks = []
         with open(filename, "rb") as f:
-            data = msgpack.load(f)
+            compressed_data = f.read()
+            data = lz4.frame.decompress(compressed_data)
+            data = msgpack.loads(data)
             if isinstance(data, list):
                 for block_data in data:
                     processed_block = self._process_block(block_data)
@@ -355,10 +349,11 @@ def launch_anvil(GENESIS, overwrite: bool):
     p = subprocess.Popen(
         f"killall anvil; {anvil} -a 0 --no-mining"
         " --chain-id 999 --timestamp 0 --hardfork cancun"
-        # f" --prune-history 20000"
-        " --cache-path /tmp/cache"
-        " --state-interval 10"
+        f" --max-persisted-states 100000000"
+        f" --cache-path {CACHE_PATH}"
+        " --state-interval 60"
         " --gas-price 100000000"
+        " --host 0.0.0.0"
         f" --no-create2 --order fifo --state {genesis}",
         shell=True,
         env=os.environ | {"RUST_LOG": "warn"},
@@ -369,7 +364,7 @@ def launch_anvil(GENESIS, overwrite: bool):
 
 def compare_blocks():
     mirror_rpc = "https://rpc.hyperliquid.xyz/evm"
-    for i in range(1, 40000, 1000):
+    for i in range(1, 40000, 100):
         while True:
             try:
                 a = Web3(HTTPProvider(ETH_RPC_URL)).eth.get_block(i)
@@ -378,13 +373,20 @@ def compare_blocks():
                 time.sleep(1)
         a = Web3(HTTPProvider(mirror_rpc)).eth.get_block(i)
         b = Web3(HTTPProvider(ETH_RPC_URL)).eth.get_block(i)
-        print(i, a["hash"] == b["hash"])
+        valid = a["hash"] == b["hash"]
+        print(i, "Valid" if valid else "Invalid")
+
+        if not valid:
+            exit()
 
 
 def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
     indexer = EthBlockIndexer()
     rpc = []
-    for mp_fln in mp_flns:
+    while True:
+        mp_fln = mp_flns.get()
+        if mp_fln is None:
+            break
         blocks = indexer.process_msgpack_file(mp_fln)
         for block in blocks:
             rpc.extend(forward_blocks_to_anvil(indexer, block))
@@ -402,46 +404,43 @@ def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
 
 if __name__ == "__main__":
     ETH_RPC_URL = os.getenv("ETH_RPC_URL", "http://localhost:8545")
+    CACHE_PATH = os.getenv("CACHE_PATH", "/tmp/cache")
 
     # Download ethereum block files from s3://hl-[testnet|mainnet]-evm-blocks
     # and input them into the indexer
     parser = argparse.ArgumentParser(description="index evm blocks")
     parser.add_argument("--data-dir", type=str, required=True)
-    parser.add_argument("--start-height-debug", type=int)
-    parser.add_argument("--end-height", type=int, required=True)
+    parser.add_argument("--data-dir2", type=str, required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
     p = launch_anvil(GENESIS, args.overwrite)
 
-    data_dir = args.data_dir
-
-    # start_height = current block number + 1 from ETH_RPC_URL
-    if args.start_height_debug:
-        start_height = args.start_height_debug
-    else:
-        start_height = sess.post(
-            f"{ETH_RPC_URL}/",
-            json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
-        ).json()["result"]
-        start_height = int(start_height, 16) + 1
-    end_height = args.end_height
-
-    mp_flns = []
-    for height in range(start_height, end_height + 1):
-        f = ((height - 1) // 100000) * 100000
-        s = ((height - 1) // 1000) * 1000
-        lz4_fln = f"{data_dir}/{f}/{s}/{height}.rmp.lz4"
-        if not os.path.exists(lz4_fln):
-            raise Exception(
-                f"block with height {height} not found - download missing block file(s) using 'aws s3 cp s3://hl-[testnet | mainnet]-evm-blocks/<block_object_path> --request-payer requester'"
-            )
-        mp_fln = f"{data_dir}/{height}.rmp"
-        decompress_lz4(lz4_fln, mp_fln)
-        mp_flns.append(mp_fln)
+    mp_flns = queue.Queue()
 
     threading.Thread(target=compare_blocks).start()
-    sync_blocks_to_node(ETH_RPC_URL, mp_flns)
+    threading.Thread(target=sync_blocks_to_node, args=(ETH_RPC_URL, mp_flns)).start()
+
+    data_dir = args.data_dir
+    data_dir2 = args.data_dir2
+    height = 1
+    while True:
+        f = ((height - 1) // 100000) * 100000
+        s = ((height - 1) // 1000) * 1000
+        found = None
+        candidates = (f"{data_dir}/{f}/{s}/{height}.rmp.lz4", f"{data_dir2}/{f}/{s}/{height}.rmp.lz4")
+        for lz4_fln in candidates:
+            if not os.path.exists(lz4_fln):
+                continue
+            found = lz4_fln
+            break
+        if found:
+            mp_flns.put(found)
+        else:
+            print(f"waiting for {candidates}")
+            time.sleep(1)
+            continue
+        height += 1
 
     print(f"done, use {ETH_RPC_URL}/ to interact with the chain")
     p.wait()
