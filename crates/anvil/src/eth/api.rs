@@ -173,9 +173,6 @@ impl EthApi {
             EthRequest::EthGetTransactionByHash(hash) => {
                 self.transaction_by_hash(hash).await.to_rpc_result()
             }
-            EthRequest::EthSendTransaction(request) => {
-                self.send_transaction(*request).await.to_rpc_result()
-            }
             EthRequest::EthChainId(_) => self.eth_chain_id().to_rpc_result(),
             EthRequest::EthNetworkId(_) => self.network_id().to_rpc_result(),
             EthRequest::NetListening(_) => self.net_listening().to_rpc_result(),
@@ -224,25 +221,6 @@ impl EthApi {
             EthRequest::EthGetProof(addr, keys, block) => {
                 self.get_proof(addr, keys, block).await.to_rpc_result()
             }
-            EthRequest::EthSign(addr, content) => self.sign(addr, content).await.to_rpc_result(),
-            EthRequest::PersonalSign(content, addr) => {
-                self.sign(addr, content).await.to_rpc_result()
-            }
-            EthRequest::EthSignTransaction(request) => {
-                self.sign_transaction(*request).await.to_rpc_result()
-            }
-            EthRequest::EthSignTypedData(addr, data) => {
-                self.sign_typed_data(addr, data).await.to_rpc_result()
-            }
-            EthRequest::EthSignTypedDataV3(addr, data) => {
-                self.sign_typed_data_v3(addr, data).await.to_rpc_result()
-            }
-            EthRequest::EthSignTypedDataV4(addr, data) => {
-                self.sign_typed_data_v4(addr, &data).await.to_rpc_result()
-            }
-            EthRequest::EthSendRawTransaction(tx) => {
-                self.send_raw_transaction(tx).await.to_rpc_result()
-            }
             EthRequest::EthCall(call, block, overrides) => {
                 self.call(call, block, overrides).await.to_rpc_result()
             }
@@ -282,12 +260,6 @@ impl EthApi {
             EthRequest::EthGetLogs(filter) => self.logs(filter).await.to_rpc_result(),
             EthRequest::EthGetWork(_) => self.work().to_rpc_result(),
             EthRequest::EthSyncing(_) => self.syncing().to_rpc_result(),
-            EthRequest::EthSubmitWork(nonce, pow, digest) => {
-                self.submit_work(nonce, pow, digest).to_rpc_result()
-            }
-            EthRequest::EthSubmitHashRate(rate, id) => {
-                self.submit_hashrate(rate, id).to_rpc_result()
-            }
             EthRequest::EthFeeHistory(count, newest, reward_percentiles) => {
                 self.fee_history(count, newest, reward_percentiles).await.to_rpc_result()
             }
@@ -306,66 +278,6 @@ impl EthApi {
             EthRequest::TraceTransaction(tx) => self.trace_transaction(tx).await.to_rpc_result(),
             EthRequest::TraceBlock(block) => self.trace_block(block).await.to_rpc_result(),
             EthRequest::TraceFilter(filter) => self.trace_filter(filter).await.to_rpc_result(),
-            EthRequest::ImpersonateAccount(addr) => {
-                self.anvil_impersonate_account(addr).await.to_rpc_result()
-            }
-            EthRequest::StopImpersonatingAccount(addr) => {
-                self.anvil_stop_impersonating_account(addr).await.to_rpc_result()
-            }
-            EthRequest::AutoImpersonateAccount(enable) => {
-                self.anvil_auto_impersonate_account(enable).await.to_rpc_result()
-            }
-            EthRequest::GetAutoMine(()) => self.anvil_get_auto_mine().to_rpc_result(),
-            EthRequest::Mine(blocks, interval) => {
-                self.anvil_mine(blocks, interval).await.to_rpc_result()
-            }
-            EthRequest::SetAutomine(enabled) => {
-                self.anvil_set_auto_mine(enabled).await.to_rpc_result()
-            }
-            EthRequest::SetIntervalMining(interval) => {
-                self.anvil_set_interval_mining(interval).to_rpc_result()
-            }
-            EthRequest::GetIntervalMining(()) => self.anvil_get_interval_mining().to_rpc_result(),
-            EthRequest::DropTransaction(tx) => {
-                self.anvil_drop_transaction(tx).await.to_rpc_result()
-            }
-            EthRequest::DropAllTransactions() => {
-                self.anvil_drop_all_transactions().await.to_rpc_result()
-            }
-            EthRequest::Reset(fork) => {
-                self.anvil_reset(fork.and_then(|p| p.params)).await.to_rpc_result()
-            }
-            EthRequest::SetBalance(addr, val) => {
-                self.anvil_set_balance(addr, val).await.to_rpc_result()
-            }
-            EthRequest::SetCode(addr, code) => {
-                self.anvil_set_code(addr, code).await.to_rpc_result()
-            }
-            EthRequest::SetNonce(addr, nonce) => {
-                self.anvil_set_nonce(addr, nonce).await.to_rpc_result()
-            }
-            EthRequest::SetStorageAt(addr, slot, val) => {
-                self.anvil_set_storage_at(addr, slot, val).await.to_rpc_result()
-            }
-            EthRequest::SetCoinbase(addr) => self.anvil_set_coinbase(addr).await.to_rpc_result(),
-            EthRequest::SetChainId(id) => self.anvil_set_chain_id(id).await.to_rpc_result(),
-            EthRequest::SetLogging(log) => self.anvil_set_logging(log).await.to_rpc_result(),
-            EthRequest::SetMinGasPrice(gas) => {
-                self.anvil_set_min_gas_price(gas).await.to_rpc_result()
-            }
-            EthRequest::SetNextBlockBaseFeePerGas(gas) => {
-                self.anvil_set_next_block_base_fee_per_gas(gas).await.to_rpc_result()
-            }
-            EthRequest::DumpState(preserve_historical_states) => self
-                .anvil_dump_state(preserve_historical_states.and_then(|s| s.params))
-                .await
-                .to_rpc_result(),
-            EthRequest::LoadState(buf) => self.anvil_load_state(buf).await.to_rpc_result(),
-            EthRequest::NodeInfo(_) => self.anvil_node_info().await.to_rpc_result(),
-            EthRequest::AnvilMetadata(_) => self.anvil_metadata().await.to_rpc_result(),
-            EthRequest::EvmSnapshot(_) => self.evm_snapshot().await.to_rpc_result(),
-            EthRequest::EvmRevert(id) => self.evm_revert(id).await.to_rpc_result(),
-            EthRequest::EvmIncreaseTime(time) => self.evm_increase_time(time).await.to_rpc_result(),
             EthRequest::AnvilSetupBlock(blocks) => {
                 for (time, gas_limit, gas, system_txs, txs) in blocks {
                     if time >= U256::from(u64::MAX) {
@@ -397,44 +309,6 @@ impl EthApi {
                 }
                 ResponseResult::success(())
             }
-            EthRequest::EvmSetNextBlockTimeStamp(time) => {
-                if time >= U256::from(u64::MAX) {
-                    return ResponseResult::Error(RpcError::invalid_params(
-                        "The timestamp is too big",
-                    ));
-                }
-                let time = time.to::<u64>();
-                self.evm_set_next_block_timestamp(time).to_rpc_result()
-            }
-            EthRequest::EvmSetTime(timestamp) => {
-                if timestamp >= U256::from(u64::MAX) {
-                    return ResponseResult::Error(RpcError::invalid_params(
-                        "The timestamp is too big",
-                    ));
-                }
-                let time = timestamp.to::<u64>();
-                self.evm_set_time(time).to_rpc_result()
-            }
-            EthRequest::EvmSetBlockGasLimit(gas_limit) => {
-                self.evm_set_block_gas_limit(gas_limit).to_rpc_result()
-            }
-            EthRequest::EvmSetBlockTimeStampInterval(time) => {
-                self.evm_set_block_timestamp_interval(time).to_rpc_result()
-            }
-            EthRequest::EvmRemoveBlockTimeStampInterval(()) => {
-                self.evm_remove_block_timestamp_interval().to_rpc_result()
-            }
-            EthRequest::EvmMine(mine) => {
-                self.evm_mine(mine.and_then(|p| p.params)).await.to_rpc_result()
-            }
-            EthRequest::EvmMineDetailed(mine) => {
-                self.evm_mine_detailed(mine.and_then(|p| p.params)).await.to_rpc_result()
-            }
-            EthRequest::SetRpcUrl(url) => self.anvil_set_rpc_url(url).to_rpc_result(),
-            EthRequest::EthSendUnsignedTransaction(tx) => {
-                self.eth_send_unsigned_transaction(*tx).await.to_rpc_result()
-            }
-            EthRequest::EnableTraces(_) => self.anvil_enable_traces().await.to_rpc_result(),
             EthRequest::EthNewFilter(filter) => self.new_filter(filter).await.to_rpc_result(),
             EthRequest::EthGetFilterChanges(id) => self.get_filter_changes(&id).await,
             EthRequest::EthNewBlockFilter(_) => self.new_block_filter().await.to_rpc_result(),
@@ -443,9 +317,6 @@ impl EthApi {
             }
             EthRequest::EthGetFilterLogs(id) => self.get_filter_logs(&id).await.to_rpc_result(),
             EthRequest::EthUninstallFilter(id) => self.uninstall_filter(&id).await.to_rpc_result(),
-            EthRequest::TxPoolStatus(_) => self.txpool_status().await.to_rpc_result(),
-            EthRequest::TxPoolInspect(_) => self.txpool_inspect().await.to_rpc_result(),
-            EthRequest::TxPoolContent(_) => self.txpool_content().await.to_rpc_result(),
             EthRequest::ErigonGetHeaderByNumber(num) => {
                 self.erigon_get_header_by_number(num).await.to_rpc_result()
             }
@@ -481,20 +352,8 @@ impl EthApi {
             EthRequest::OtsGetContractCreator(address) => {
                 self.ots_get_contract_creator(address).await.to_rpc_result()
             }
-            EthRequest::RemovePoolTransactions(address) => {
-                self.anvil_remove_pool_transactions(address).await.to_rpc_result()
-            }
-            EthRequest::Reorg(reorg_options) => {
-                self.anvil_reorg(reorg_options).await.to_rpc_result()
-            }
-            EthRequest::Rollback(depth) => self.anvil_rollback(depth).await.to_rpc_result(),
-            EthRequest::WalletGetCapabilities(()) => self.get_capabilities().to_rpc_result(),
-            EthRequest::WalletSendTransaction(tx) => {
-                self.wallet_send_transaction(*tx).await.to_rpc_result()
-            }
-            EthRequest::AnvilAddCapability(addr) => self.anvil_add_capability(addr).to_rpc_result(),
-            EthRequest::AnvilSetExecutor(executor_pk) => {
-                self.anvil_set_executor(executor_pk).to_rpc_result()
+            _ => {
+                ResponseResult::Error(RpcError::method_not_found())
             }
         };
 
