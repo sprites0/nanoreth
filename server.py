@@ -426,7 +426,7 @@ if __name__ == "__main__":
     data_dir2 = args.data_dir2
     height = Web3(HTTPProvider(ETH_RPC_URL)).eth.block_number + 1
     while True:
-        f = ((height - 1) // 100000) * 100000
+        f = ((height - 1) // 1000000) * 1000000
         s = ((height - 1) // 1000) * 1000
         found = None
         candidates = (f"{data_dir}/{f}/{s}/{height}.rmp.lz4", f"{data_dir2}/{f}/{s}/{height}.rmp.lz4")
