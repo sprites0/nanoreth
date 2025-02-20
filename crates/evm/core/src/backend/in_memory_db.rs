@@ -1,7 +1,7 @@
 //! In-memory database.
 
 use crate::state_snapshot::StateSnapshots;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{keccak256, Address, B256, U256};
 use foundry_fork_db::DatabaseError;
 use revm::{
     db::{CacheDB, DatabaseRef, EmptyDB},
@@ -66,7 +66,8 @@ impl Database for MemDb {
     }
 
     fn block_hash(&mut self, number: u64) -> Result<B256, Self::Error> {
-        Database::block_hash(&mut self.inner, number)
+        let hash = keccak256(format!("{}", number).as_bytes());
+        Ok(B256::from(hash))
     }
 }
 
