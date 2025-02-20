@@ -346,8 +346,9 @@ def launch_anvil(GENESIS, overwrite: bool):
             json.dump(GENESIS, f, indent=2)
     anvil = "cargo run --release --"
     # anvil = "~/anvil"
+    # os.system('killall anvil')
     p = subprocess.Popen(
-        f"killall anvil; {anvil} -a 0 --no-mining"
+        f"{anvil} -a 0 --no-mining"
         " --chain-id 999 --timestamp 0 --hardfork cancun"
         f" --max-persisted-states 100000000"
         f" --cache-path {CACHE_PATH}"
@@ -364,7 +365,7 @@ def launch_anvil(GENESIS, overwrite: bool):
 
 def compare_blocks():
     mirror_rpc = "https://rpc.hyperliquid.xyz/evm"
-    for i in range(1, 40000, 100):
+    for i in range(75000, 10000000000, 100):
         while True:
             try:
                 a = Web3(HTTPProvider(ETH_RPC_URL)).eth.get_block(i)
@@ -387,6 +388,7 @@ def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
         mp_fln = mp_flns.get()
         if mp_fln is None:
             break
+        print(mp_fln)
         blocks = indexer.process_msgpack_file(mp_fln)
         for block in blocks:
             rpc.extend(forward_blocks_to_anvil(indexer, block))
@@ -414,16 +416,15 @@ if __name__ == "__main__":
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    p = launch_anvil(GENESIS, args.overwrite)
-
     mp_flns = queue.Queue()
 
+    p = launch_anvil(GENESIS, args.overwrite)
     threading.Thread(target=compare_blocks).start()
     threading.Thread(target=sync_blocks_to_node, args=(ETH_RPC_URL, mp_flns)).start()
 
     data_dir = args.data_dir
     data_dir2 = args.data_dir2
-    height = 1
+    height = Web3(HTTPProvider(ETH_RPC_URL)).eth.block_number + 1
     while True:
         f = ((height - 1) // 100000) * 100000
         s = ((height - 1) // 1000) * 1000
@@ -440,6 +441,7 @@ if __name__ == "__main__":
             print(f"waiting for {candidates}")
             time.sleep(1)
             continue
+        # input()
         height += 1
 
     print(f"done, use {ETH_RPC_URL}/ to interact with the chain")
