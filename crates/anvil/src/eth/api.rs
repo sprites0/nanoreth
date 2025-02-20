@@ -926,7 +926,8 @@ impl EthApi {
         let pending_transaction = PendingTransaction::new(transaction)?;
 
         // pre-validate
-        self.backend.validate_pool_transaction(&pending_transaction).await?;
+        // DIFF: cannot check when if it's in mempool?? It's really tricky.
+        // self.backend.validate_pool_transaction(&pending_transaction).await?;
 
         let on_chain_nonce = self.backend.current_nonce(*pending_transaction.sender()).await?;
         let from = *pending_transaction.sender();
