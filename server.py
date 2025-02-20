@@ -393,7 +393,7 @@ def sync_blocks_to_node(ETH_RPC_URL, mp_flns):
         for block in blocks:
             rpc.extend(forward_blocks_to_anvil(indexer, block))
 
-        if len(rpc) >= 100:
+        if len(rpc) >= 1:
             # fast forward first blocks
             submit_rpc_requests(ETH_RPC_URL, rpc)
             rpc = []
