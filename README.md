@@ -38,6 +38,6 @@ $ reth init-state --without-evm --chain testnet --header ~/hl-testnet-genesis/21
   ~/hl-testnet-genesis/21304281.jsonl --total-difficulty 0 
 
 # Run node
-$ reth node --http --http.addr 0.0.0.0 --http.api eth,ots,net,web3 \
+$ reth node --chain testnet --http --http.addr 0.0.0.0 --http.api eth,ots,net,web3 \
     --ws --ws.addr 0.0.0.0 --ws.origins '*' --ws.api eth,ots,net,web3 --ingest-dir ~/evm-blocks --ws.port 8546
 ```
